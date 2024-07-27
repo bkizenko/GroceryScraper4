@@ -1,9 +1,16 @@
 "use client"; // Add this directive
 
 import { useState } from "react";
+import MapComponent from "./MapComponent.mjs";
 
 export default function Home() {
   const [data, setData] = useState(null);
+  const [address, setAddress] = useState(null);
+
+  const handlePlaceSelected = (place) => {
+    setAddress(place.formatted_address);
+    // You can also get the coordinates: place.geometry.location.lat(), place.geometry.location.lng()
+  };
 
   const handleClick = async () => {
     console.log("clicked!");
@@ -22,7 +29,9 @@ export default function Home() {
   return (
     <div>
       <h1>Cheapr4</h1>
+      <MapComponent onPlaceSelected={handlePlaceSelected} />
       <button onClick={handleClick}>Click Me</button>
+      {address && <p>Selected Address: {address}</p>}
       {data && (
         <div>
           <h2>Prices:</h2>
@@ -32,3 +41,5 @@ export default function Home() {
     </div>
   );
 }
+
+
