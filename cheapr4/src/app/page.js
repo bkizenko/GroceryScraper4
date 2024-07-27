@@ -4,14 +4,18 @@ import { useState } from "react";
 import MapComponent from "./MapComponent.mjs";
 
 export default function Home() {
+  // State to store fetched data
   const [data, setData] = useState(null);
+  // State to store the selected address
   const [address, setAddress] = useState(null);
 
+  // Callback function to handle place selection from MapComponent
   const handlePlaceSelected = (place) => {
     setAddress(place.formatted_address);
     // You can also get the coordinates: place.geometry.location.lat(), place.geometry.location.lng()
   };
 
+  // Function to handle button click and fetch data from the server
   const handleClick = async () => {
     console.log("clicked!");
     try {
@@ -29,9 +33,13 @@ export default function Home() {
   return (
     <div>
       <h1>Cheapr4</h1>
+      {/* MapComponent with a callback for place selection */}
       <MapComponent onPlaceSelected={handlePlaceSelected} />
+      {/* Button to fetch data */}
       <button onClick={handleClick}>Click Me</button>
+      {/* Display the selected address */}
       {address && <p>Selected Address: {address}</p>}
+      {/* Display fetched data */}
       {data && (
         <div>
           <h2>Prices:</h2>
@@ -41,5 +49,3 @@ export default function Home() {
     </div>
   );
 }
-
-
