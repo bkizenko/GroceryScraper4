@@ -89,15 +89,30 @@ const MapComponent = ({ onPlaceSelected }) => {
                 }))
                 .filter(item => item.duration <= 1200) // 1200 seconds = 20 minutes
                 .map(item => item.store);
-              
-              setNearbyStores(withinTwentyMinutes);
-              // Clear previous markers and set new ones
-              markersRef.current.forEach(marker => marker.setMap(null));
-              markersRef.current = withinTwentyMinutes.map(place => {
-                return new window.google.maps.Marker({
-                  map: map,
-                  position: place.geometry.location,
-                  title: place.name
+
+              // Fetch details for each store to get the website URL
+              const detailedStores = [];
+              withinTwentyMinutes.forEach((store, index) => {
+                service.getDetails({ placeId: store.place_id }, (placeDetails, status) => {
+                  if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+                    detailedStores.push({
+                      ...store,
+                      website: placeDetails.website || 'No website available'
+                    });
+                    // Update state once all details are fetched
+                    if (detailedStores.length === withinTwentyMinutes.length) {
+                      setNearbyStores(detailedStores);
+                      // Clear previous markers and set new ones
+                      markersRef.current.forEach(marker => marker.setMap(null));
+                      markersRef.current = detailedStores.map(place => {
+                        return new window.google.maps.Marker({
+                          map: map,
+                          position: place.geometry.location,
+                          title: place.name
+                        });
+                      });
+                    }
+                  }
                 });
               });
             }
@@ -150,7 +165,9 @@ const MapComponent = ({ onPlaceSelected }) => {
         <h3>Nearby Grocery Stores (within 20 minutes drive):</h3>
         <ul>
           {nearbyStores.map((store, index) => (
-            <li key={index}>{store.name}</li>
+            <li key={index}>
+              {store.name} - <a href={store.website} target="_blank" rel="noopener noreferrer">{store.website}</a>
+            </li>
           ))}
         </ul>
       </div>
