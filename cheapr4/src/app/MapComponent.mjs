@@ -102,6 +102,7 @@ const MapComponent = ({ onPlaceSelected }) => {
                     // Update state once all details are fetched
                     if (detailedStores.length === withinTwentyMinutes.length) {
                       setNearbyStores(detailedStores);
+                      sendNearbyStoresToBackend(detailedStores);
                       // Clear previous markers and set new ones
                       markersRef.current.forEach(marker => marker.setMap(null));
                       markersRef.current = detailedStores.map(place => {
@@ -120,6 +121,23 @@ const MapComponent = ({ onPlaceSelected }) => {
         );
       }
     });
+  };
+
+  const sendNearbyStoresToBackend = async (stores) => {
+    try {
+      const response = await fetch('http://localhost:3001/stores', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ stores }),
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+    } catch (error) {
+      console.error('Error sending nearby stores to backend:', error);
+    }
   };
 
   // Handle input change

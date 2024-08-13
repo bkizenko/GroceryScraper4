@@ -43,7 +43,13 @@ export default function Home() {
       {data && (
         <div>
           <h2>Prices:</h2>
-          <pre>{JSON.stringify(data, null, 2)}</pre>
+          { <pre>{JSON.stringify(data, null, 2)}</pre> }
+          {/* 
+            JSON.stringify parameters:
+            1. data: The object to be converted to a JSON string
+            2. null: A replacer function (not used here, so set to null)
+            3. 2: Number of spaces for indentation in the resulting string
+          */}
         </div>
       )}
     </div>
