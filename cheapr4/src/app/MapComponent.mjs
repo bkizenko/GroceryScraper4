@@ -1,15 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 const MapComponent = ({ onPlaceSelected }) => {
-  const mapRef = useRef(null); // Reference to the map container
-  const inputRef = useRef(null); // Reference to the input field
-  const [address, setAddress] = useState(''); // State to store the address
-  const [mapLoaded, setMapLoaded] = useState(false); // State to track if the map is loaded
-  const [map, setMap] = useState(null); // State to store the map instance
-  const [nearbyStores, setNearbyStores] = useState([]); // State to store nearby grocery stores
-  const markersRef = useRef([]); // Reference to store markers
+  const mapRef = useRef(null);
+  const inputRef = useRef(null);
+  const [address, setAddress] = useState('');
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [map, setMap] = useState(null);
+  const [nearbyStores, setNearbyStores] = useState([]);
+  const markersRef = useRef([]);
 
-  // Load the Google Maps API script
   useEffect(() => {
     if (!window.google) {
       const script = document.createElement('script');
@@ -23,7 +22,6 @@ const MapComponent = ({ onPlaceSelected }) => {
     }
   }, []);
 
-  // Initialize the map and autocomplete
   useEffect(() => {
     if (mapLoaded && mapRef.current && !map) {
       const newMap = new window.google.maps.Map(mapRef.current, {
@@ -35,7 +33,6 @@ const MapComponent = ({ onPlaceSelected }) => {
       const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current);
       autocomplete.bindTo('bounds', newMap);
 
-      // Listener for place selection from autocomplete
       autocomplete.addListener('place_changed', () => {
         const place = autocomplete.getPlace();
         if (!place.geometry || !place.geometry.location) {
@@ -43,7 +40,6 @@ const MapComponent = ({ onPlaceSelected }) => {
           return;
         }
 
-        // Center the map on the selected place
         if (place.geometry.viewport) {
           newMap.fitBounds(place.geometry.viewport);
         } else {
@@ -58,67 +54,40 @@ const MapComponent = ({ onPlaceSelected }) => {
     }
   }, [mapLoaded, map, onPlaceSelected]);
 
-  // Function to find nearby grocery stores
   const findNearbyGroceryStores = (location, map) => {
     const service = new window.google.maps.places.PlacesService(map);
     const request = {
       location: location,
-      radius: '20000', // 20km radius (approximate for 20 minutes drive)
+      radius: '20000',
       type: ['grocery_or_supermarket']
     };
 
     service.nearbySearch(request, (results, status) => {
       if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-        // Use Distance Matrix to filter stores within 20 minutes drive
-        const origins = [location];
-        const destinations = results.map(place => place.geometry.location);
-        const distanceMatrixService = new window.google.maps.DistanceMatrixService();
-        distanceMatrixService.getDistanceMatrix(
-          {
-            origins: origins,
-            destinations: destinations,
-            travelMode: 'DRIVING',
-            unitSystem: window.google.maps.UnitSystem.METRIC,
-          },
-          (response, status) => {
-            if (status === 'OK') {
-              const withinTwentyMinutes = response.rows[0].elements
-                .map((element, index) => ({
-                  store: results[index],
-                  duration: element.duration.value
-                }))
-                .filter(item => item.duration <= 1200) // 1200 seconds = 20 minutes
-                .map(item => item.store);
-
-              // Fetch details for each store to get the website URL
-              const detailedStores = [];
-              withinTwentyMinutes.forEach((store, index) => {
-                service.getDetails({ placeId: store.place_id }, (placeDetails, status) => {
-                  if (status === window.google.maps.places.PlacesServiceStatus.OK) {
-                    detailedStores.push({
-                      ...store,
-                      website: placeDetails.website || 'No website available'
-                    });
-                    // Update state once all details are fetched
-                    if (detailedStores.length === withinTwentyMinutes.length) {
-                      setNearbyStores(detailedStores);
-                      sendNearbyStoresToBackend(detailedStores);
-                      // Clear previous markers and set new ones
-                      markersRef.current.forEach(marker => marker.setMap(null));
-                      markersRef.current = detailedStores.map(place => {
-                        return new window.google.maps.Marker({
-                          map: map,
-                          position: place.geometry.location,
-                          title: place.name
-                        });
-                      });
-                    }
-                  }
-                });
+        const detailedStores = [];
+        results.forEach((store, index) => {
+          service.getDetails({ placeId: store.place_id }, (placeDetails, status) => {
+            if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+              detailedStores.push({
+                ...store,
+                website: placeDetails.website || 'No website available',
+                isOpen: placeDetails.opening_hours ? placeDetails.opening_hours.isOpen() : 'Unknown'
               });
+              if (detailedStores.length === results.length) {
+                setNearbyStores(detailedStores);
+                sendNearbyStoresToBackend(detailedStores);
+                markersRef.current.forEach(marker => marker.setMap(null));
+                markersRef.current = detailedStores.map(place => {
+                  return new window.google.maps.Marker({
+                    map: map,
+                    position: place.geometry.location,
+                    title: place.name
+                  });
+                });
+              }
             }
-          }
-        );
+          });
+        });
       }
     });
   };
@@ -135,17 +104,16 @@ const MapComponent = ({ onPlaceSelected }) => {
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
+      console.log('Prices extracted and saved');
     } catch (error) {
-      console.error('Error sending nearby stores to backend:', error);
+      console.error('Error sending stores to backend:', error);
     }
   };
 
-  // Handle input change
   const handleInputChange = (e) => {
     setAddress(e.target.value);
   };
 
-  // Handle "Use Current Location" button click
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(position => {
@@ -166,7 +134,6 @@ const MapComponent = ({ onPlaceSelected }) => {
 
   return (
     <div>
-      {/* Input field for address */}
       <input 
         ref={inputRef} 
         type="text" 
@@ -174,17 +141,14 @@ const MapComponent = ({ onPlaceSelected }) => {
         value={address}
         onChange={handleInputChange}
       />
-      {/* Button to use current location */}
       <button onClick={handleUseCurrentLocation}>Use Current Location</button>
-      {/* Map container */}
       <div ref={mapRef} style={{ height: '400px', width: '100%' }}></div>
-      {/* List of nearby grocery stores */}
       <div>
         <h3>Nearby Grocery Stores (within 20 minutes drive):</h3>
         <ul>
           {nearbyStores.map((store, index) => (
             <li key={index}>
-              {store.name} - <a href={store.website} target="_blank" rel="noopener noreferrer">{store.website}</a>
+              {store.name} - <a href={store.website} target="_blank" rel="noopener noreferrer">{store.website}</a> - {store.isOpen ? 'Open' : 'Closed'}
             </li>
           ))}
         </ul>
