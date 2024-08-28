@@ -1,6 +1,7 @@
 const express = require('express'); // Import the express package
 const fs = require('fs'); // Import the file system module
 const cors = require('cors'); // Import the cors package
+const { exec } = require('child_process'); // Import the child_process module
 const app = express(); // Create an instance of an Express application
 const port = 3001; // Define the port number the server will listen on
 
@@ -21,31 +22,29 @@ app.get('/prices', (req, res) => { // Define a GET route for '/prices'
 
 // New endpoint to receive nearby stores and extract prices
 app.post('/stores', async (req, res) => {
-  // Destructure 'stores' from the request body
   const { stores } = req.body;
-  
-  // Extract URLs from the stores and filter out those without a website
-  const urls = stores.map(store => store.website).filter(url => url !== 'No website available');
-  
-  // Initialize an array to hold all items
-  const allItems = [];
 
-  // Loop through each URL
-  for (const url of urls) {
-    // Extract prices from the URL (assuming extractPrices is an async function)
-    const items = await extractPrices(url);
-    // Add the extracted items to the allItems array
-    allItems.push(...items);
+  if (!stores || stores.length === 0) {
+    res.status(400).send('No stores provided');
+    return;
   }
 
-  // Write the collected items to 'prices.json'
-  fs.writeFile('prices.json', JSON.stringify({ data: allItems }), (err) => {
-    // If there's an error writing the file, send a 500 status code
-    if (err) {
-      res.status(500).send('Error writing file');
+  const urls = stores.map(store => store.website).filter(url => url !== 'No website available');
+  if (urls.length === 0) {
+    res.status(400).send('No valid store websites provided');
+    return;
+  }
+
+  const output_file = 'prices.json';
+
+  exec(`python scrape.py ${urls.join(' ')} ${output_file}`, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Error executing scrape.py: ${error.message}`);
+      console.error(`stderr: ${stderr}`);
+      res.status(500).send('Error extracting prices');
       return;
     }
-    // If successful, send a 200 status code with a success message
+    console.log(`stdout: ${stdout}`);
     res.status(200).send('Prices extracted and saved');
   });
 });
@@ -53,9 +52,3 @@ app.post('/stores', async (req, res) => {
 app.listen(port, () => { // Start the server and listen on the defined port
   console.log(`Server is running on http://localhost:${port}`); // Log a message when the server starts
 });
-
-// Function to extract prices (simplified for brevity)
-const extractPrices = async (url) => {
-  // Your existing extract_prices logic here
-  // Return the extracted items
-};
